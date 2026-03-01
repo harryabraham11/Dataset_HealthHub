@@ -1,18 +1,49 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { pgTable, text, serial, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+export const datasets = pgTable("datasets", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  status: text("status").notNull(), // 'uploaded', 'analyzing', 'ready', 'error'
+  rowCount: integer("row_count"),
+  colCount: integer("col_count"),
+  summary: jsonb("summary"), // store analysis results
+  cleanedFilename: text("cleaned_filename"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
+export const insertDatasetSchema = createInsertSchema(datasets).omit({ id: true, createdAt: true });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type Dataset = typeof datasets.$inferSelect;
+export type InsertDataset = z.infer<typeof insertDatasetSchema>;
+
+// API request/response types
+export type UploadResponse = {
+  id: number;
+  message: string;
+};
+
+export type AnalysisResponse = {
+  id: number;
+  status: string;
+  summary?: any;
+};
+
+export type AiSuggestionsResponse = {
+  suggestions: string;
+};
+
+export type CleanDataRequest = {
+  handleMissing: 'drop' | 'mean' | 'median' | 'mode' | 'none';
+  removeDuplicates: boolean;
+  encodeCategorical: boolean;
+  normalize: boolean;
+};
+
+export type CleanDataResponse = {
+  success: boolean;
+  cleanedFilename?: string;
+  message?: string;
+};
